@@ -97,9 +97,12 @@ class FritzCollectd(object):
     }
 
     def __init__(self,  # pylint: disable=too-many-arguments
-                 address=fritzconnection.fritzconnection.FRITZ_IP_ADDRESS,
-                 port=fritzconnection.fritzconnection.FRITZ_TCP_PORT,
-                 user=fritzconnection.fritzconnection.FRITZ_USERNAME,
+                 #address=fritzconnection.FritzConnection.FRITZ_IP_ADDRESS, # !is not object of the class
+                 address='192.169.178.1',
+                 #port=fritzconnection.FritzConnection.FRITZ_TCP_PORT, # ! is not object of the class
+                 port='49000',
+                 #user=fritzconnection.FritzConnection.FRITZ_USERNAME, # ! is not ocbject of the class
+                 user='fritz',
                  password='',
                  hostname='',
                  plugin_instance='',
@@ -151,7 +154,7 @@ class FritzCollectd(object):
         if self._fritz_password != '':
             # If the 'Allow access for applications' option is disabled,
             # the connection behaves as if it was created without password.
-            if 'WANIPConnection:1' not in self._fc.services.keys():
+            if 'WANIPConnection:1' not in list(self._fc.services.keys()):
                 self._fc = None
                 raise IOError("fritzcollectd: Allow access for applications "
                               "is not enabled")
@@ -183,7 +186,7 @@ class FritzCollectd(object):
     def read(self):
         """ Read and dispatch """
         values = self._read_data(self.SERVICE_ACTIONS, self._fc)
-        for (instance, value_instance), (value_type, value) in values.items():
+        for (instance, value_instance), (value_type, value) in list(values.items()):
             self._dispatch_value(instance, value_type, value_instance, value)
 
     def _read_data(self, service_actions, connection):
@@ -228,7 +231,7 @@ class FritzCollectd(object):
                         service_action.instance_prefix,
                         readings[service_action.instance_field]
                     ))
-                plugin_instance = '-'.join(filter(None, plugin_instance))
+                plugin_instance = '-'.join([_f for _f in plugin_instance if _f])
 
                 values.update({  # pragma: no branch
                     (plugin_instance, value.value_instance): (
@@ -237,7 +240,7 @@ class FritzCollectd(object):
                             readings[action_argument])
                     )
                     for (action_argument, value)
-                    in service_actions[service_action].items()
+                    in list(service_actions[service_action].items())
                 })
 
                 if not service_action.index_field:
@@ -295,4 +298,5 @@ def callback_shutdown():
 collectd.register_config(callback_configure)
 collectd.register_init(callback_init)
 collectd.register_read(callback_read)
-collectd.register_shutdown(callback_shutdown)
+collectd.register_shutdown(callback_shutdown)#
+
