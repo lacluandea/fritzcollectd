@@ -36,9 +36,9 @@ Data captured for connected FRITZ!DECT devices (requires authentication):
 
 Dependencies
 ------------
-* Python 2.7+
+* Python 3.11+
 * `fritzconnection <https://github.com/kbr/fritzconnection>`__
-* `collectd <http://collectd.org>`__ 4.9+
+* `collectd <http://collectd.org>`__ 5.12+
 
 Installation
 ------------
