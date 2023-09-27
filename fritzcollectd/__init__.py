@@ -19,13 +19,33 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+# 2023 Python3.11 with fritzconnection >1.0
+
 # pylint: disable=bad-option-value,useless-object-inheritance
 
 """ fritzcollectd - FRITZ!Box collectd plugin """
 
 from collections import namedtuple, OrderedDict
 
-import fritzconnection
+#import fritzconnection
+from fritzconnection import FritzConnection
+#from fritzconnection.core.exceptions import *
+from fritzconnection.core.exceptions import FritzArrayIndexError,FritzActionError,FritzAuthorizationError
+#from fritzconnection.core.exceptions import FritzActionError
+#from fritzconnection.core.exceptions import FritzServiceError
+##from fritzconnection.core.exceptions import FritzAuthorizationError
+#from fritzconnection.core.exceptions import FritzResourceError
+#from fritzconnection.core.exceptions import FritzArgumentError
+#from fritzconnection.core.exceptions import FritzInternalError
+#from fritzconnection.core.exceptions import FritzOutOfMemoryError
+#from fritzconnection.core.exceptions import FritzActionFailedError
+#from fritzconnection.core.exceptions import FritzSecurityError
+#from fritzconnection.core.exceptions import FritzLookUpError
+#from fritzconnection.core.exceptions import FritzArgumentValueError
+#from fritzconnection.core.exceptions import FritzArgumentStringToShortError
+#from fritzconnection.core.exceptions import FritzArgumentStringToLongError
+#from fritzconnection.core.exceptions import FritzArgumentCharacterError
+
 import pbr.version
 
 from lxml.etree import XMLSyntaxError  # pylint: disable=no-name-in-module
@@ -55,29 +75,36 @@ class FritzCollectd(object):
     # dict: {(service, service_action):
     #           {action_argument: (value_instance, value_type)}}
     SERVICE_ACTIONS = OrderedDict([
-        (ServiceAction('WANIPConn:1', 'GetStatusInfo'),
+        #(ServiceAction('WANIPConn:1', 'GetStatusInfo'),
+        (ServiceAction('WANIPConn1', 'GetStatusInfo'),
          {'NewConnectionStatus': Value('constatus', 'gauge'),
           'NewUptime': Value('uptime', 'uptime')}),
-        (ServiceAction('WANCommonIFC:1', 'GetCommonLinkProperties'),
+        #(ServiceAction('WANCommonIFC:1', 'GetCommonLinkProperties'),
+        (ServiceAction('WANCommonIFC1', 'GetCommonLinkProperties'),
          {'NewPhysicalLinkStatus': Value('dslstatus', 'gauge'),
           'NewLayer1DownstreamMaxBitRate': Value('downstreammax', 'bitrate'),
           'NewLayer1UpstreamMaxBitRate': Value('upstreammax', 'bitrate')}),
-        (ServiceAction('WANCommonIFC:1', 'GetAddonInfos'),
+        #(ServiceAction('WANCommonIFC:1', 'GetAddonInfos'),
+        (ServiceAction('WANCommonIFC1', 'GetAddonInfos'),
          {'NewByteSendRate': Value('sendrate', 'bitrate'),
           'NewByteReceiveRate': Value('receiverate', 'bitrate'),
           'NewTotalBytesSent': Value('totalbytessent', 'bytes'),
           'NewTotalBytesReceived': Value('totalbytesreceived', 'bytes')}),
-        (ServiceAction('DeviceInfo:1', 'GetInfo'),
+        #(ServiceAction('DeviceInfo:1', 'GetInfo'),
+        (ServiceAction('DeviceInfo1', 'GetInfo'),
          {'NewUpTime': Value('boxuptime', 'uptime')}),
-        (ServiceAction('LANEthernetInterfaceConfig:1', 'GetStatistics'),
+        #(ServiceAction('LANEthernetInterfaceConfig:1', 'GetStatistics'),
+        (ServiceAction('LANEthernetInterfaceConfig1', 'GetStatistics'),
          {'NewBytesSent': Value('lan_totalbytessent', 'bytes'),
           'NewBytesReceived': Value('lan_totalbytesreceived', 'bytes')}),
-        (ServiceAction('WANCommonInterfaceConfig:1',
+        #(ServiceAction('WANCommonInterfaceConfig:1',
+        (ServiceAction('WANCommonInterfaceConfig1',
                        'GetCommonLinkProperties'),
          {'NewLayer1DownstreamMaxBitRate':
           Value('linkdownstreammax', 'bitrate'),
           'NewLayer1UpstreamMaxBitRate': Value('linkupstreammax', 'bitrate')}),
-        (ServiceAction('X_AVM-DE_Homeauto:1', 'GetGenericDeviceInfos',
+        #(ServiceAction('X_AVM-DE_Homeauto:1', 'GetGenericDeviceInfos',
+        (ServiceAction('X_AVM-DE_Homeauto1', 'GetGenericDeviceInfos',
                        'NewIndex', 'NewIndex', 'dect'),
          {'NewMultimeterPower': Value('power', 'power'),
           'NewMultimeterEnergy': Value('energy', 'power'),
@@ -102,7 +129,7 @@ class FritzCollectd(object):
                  #port=fritzconnection.FritzConnection.FRITZ_TCP_PORT, # ! is not object of the class
                  port='49000',
                  #user=fritzconnection.FritzConnection.FRITZ_USERNAME, # ! is not ocbject of the class
-                 user='fritz',
+                 user='',
                  password='',
                  hostname='',
                  plugin_instance='',
@@ -117,6 +144,8 @@ class FritzCollectd(object):
         if self._verbose:
             collectd.info("fritzcollectd: Verbose logging enabled")
         self._fc = None
+        collectd.info("init instance {} {}".format(plugin_instance,hostname))
+
 
     def _dispatch_value(self, plugin_instance,
                         value_type, value_instance, value):
@@ -138,30 +167,42 @@ class FritzCollectd(object):
 
     def init(self):
         """ Initialize the connection to the FRITZ!Box """
-        self._fc = fritzconnection.FritzConnection(
-            address=self._fritz_address, port=self._fritz_port,
-            user=self._fritz_user, password=self._fritz_password)
+        try:
+            self._fc = FritzConnection(
+                address=self._fritz_address, port=self._fritz_port,
+                user=self._fritz_user, password=self._fritz_password)
+        except FritzActionError:
+            raise IOError("fritzcollectd:  ActionError connect %s" %self._fritz_address)
+
         if self._fc.modelname is None:
             self._fc = None
             raise IOError("fritzcollectd: Failed to connect to %s" %
                           self._fritz_address)
 
-        if not self._fc.call_action('WANIPConn:1', 'GetStatusInfo'):
-            self._fc = None
-            raise IOError("fritzcollectd: Statusinformation via UPnP is "
-                          "not enabled")
+        #if not self._fc.call_action('WANIPConn:1', 'GetStatusInfo'):
+        try:
+            if not self._fc.call_action('WANIPConn1', 'GetStatusInfo'):
+                self._fc = None
+                raise IOError("fritzcollectd: Statusinformation via UPnP is "
+                              "not enabled")
+        except FritzActionError:
+            raise IOError("fritzcollectd:  ActionError WABIOConn1.GetStatusInfo")
 
         if self._fritz_password != '':
             # If the 'Allow access for applications' option is disabled,
             # the connection behaves as if it was created without password.
-            if 'WANIPConnection:1' not in list(self._fc.services.keys()):
-                self._fc = None
+            if 'WANIPConnection1' not in list(self._fc.services.keys()):
+                #self._fc = None
                 raise IOError("fritzcollectd: Allow access for applications "
-                              "is not enabled")
+                              "is not enabled ")
+                #raise IOError(" ERR: ".join(str(e)for e in list(self._fc.services.keys())) )
+                self._fc = None
+            #else:
+                #raise Warning("WANIPConnection1 calling ok")
 
             try:
-                self._fc.call_action('WANIPConnection:1', 'GetStatusInfo')
-            except fritzconnection.AuthorizationError:
+                self._fc.call_action('WANIPConnection1', 'GetStatusInfo')
+            except FritzAuthorizationError:
                 self._fc = None
                 raise IOError("fritzcollectd: Incorrect password or "
                               "'FRITZ!Box Settings' rights for user disabled")
@@ -216,9 +257,12 @@ class FritzCollectd(object):
                                   "{} {} {}".format(service_action.service,
                                                     service_action.action,
                                                     parameters))
-                readings = connection.call_action(
-                    service_action.service, service_action.action,
-                    **parameters)
+                try:
+                    readings = connection.call_action(
+                               service_action.service, service_action.action,
+                               **parameters)
+                except FritzArrayIndexError:
+                    break
                 if not readings:
                     if self._verbose:
                         collectd.info("fritzcollectd: No readings received")
@@ -299,4 +343,3 @@ collectd.register_config(callback_configure)
 collectd.register_init(callback_init)
 collectd.register_read(callback_read)
 collectd.register_shutdown(callback_shutdown)#
-
